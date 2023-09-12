@@ -8,10 +8,12 @@ import os
 import re
 from PIL import Image
 import cv2
+from multiprocessing import Pool
 
 root = "data"
 output_path = "build/processed"
 USE_GRAYSCALE = True
+N_JOBS = 6
 
 def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=1.5, dpi=1, force=False):
     if not force and os.path.exists(output_image_path):
@@ -75,11 +77,8 @@ for key, value in kraut_emotions_codes.items():
   folder_name = os.path.join(output_path, value)
   os.makedirs(folder_name, exist_ok=True)
 
-csv_f = open(output_path + "_labels.csv", "w+")
 
-audio_tensor_list = []
-for audio_file in os.listdir(dataset_path):
-
+def job_kraut(audio_file):
   pre, ext = os.path.splitext(audio_file)
 
   # in this dataset the emotionCode is written inside the name
@@ -91,15 +90,14 @@ for audio_file in os.listdir(dataset_path):
 
   audio_path = os.path.join(dataset_path, audio_file)
 
-
   audio_to_mel_spectrogram(
       input_audio_path = audio_path,
       output_image_path = out_path,
   )
 
-  csv_f.write(f"{emotion}/{pre}.png,{emotion}\n")
+with Pool(N_JOBS) as p:
+  p.map(job_kraut, os.listdir(dataset_path))
 
-csv_f.close()
 
 emovo_emotions_codes = {
   "neu": "NEUTRAL",
@@ -113,26 +111,31 @@ emovo_emotions_codes = {
 
 dataset_path = os.path.join(root, "EMOVO/")
 
+
+def job_emovo(audio_file):
+  emotionCode = audio_file[0:3]
+
+  if emotionCode not in emovo_emotions_codes:
+    print("Unknown emotion " + emotionCode)
+    return
+
+  pre, ext = os.path.splitext(audio_file)
+  out_path = os.path.join(output_path, emovo_emotions_codes[emotionCode], f"emovo_{pre}.png")
+
+  audio_path = os.path.join(folderpath, audio_file)
+
+  audio_to_mel_spectrogram(
+    input_audio_path=audio_path,
+    output_image_path=out_path,
+  )
+
 for actor_folder in ["m3","m2","m1","f3","f2","f1"]:
   folderpath = os.path.join(dataset_path, actor_folder)
   print("Analysis of " + folderpath)
 
-  for audio_file in os.listdir(folderpath):
-    emotionCode = audio_file[0:3]
+  with Pool(N_JOBS) as p:
+    p.map(job_emovo, os.listdir(folderpath))
 
-    if emotionCode not in emovo_emotions_codes:
-      print("Unknown emotion " + emotionCode)
-      continue
-
-    pre, ext = os.path.splitext(audio_file)
-    out_path =  os.path.join(output_path, emovo_emotions_codes[emotionCode], f"emovo_{pre}.png")
-
-    audio_path = os.path.join(folderpath, audio_file)
-
-    audio_to_mel_spectrogram(
-        input_audio_path = audio_path,
-        output_image_path = out_path,
-    )
 
 import gc
 
@@ -156,26 +159,25 @@ emovdb_emotions_codes = {
 
 dataset_path = os.path.join(root, "EmoV-DB/")
 
-count = 0
+
+def job_emovdb(audiofilename):
+  pre, ext = os.path.splitext(audiofilename)
+
+  # Generate and save to disk
+  audio_path = os.path.join(subfolder_name, audiofilename)
+  output_filename = os.path.join(output_path, f"{emotion}/{pre}.png")
+
+  audio_to_mel_spectrogram(
+    input_audio_path=audio_path,
+    output_image_path=output_filename,
+  )
+
 
 for folder_name, emotion in emovdb_emotions_codes.items():
   subfolder_name = os.path.join(dataset_path, folder_name)
+  with Pool(N_JOBS) as p:
+    p.map(job_emovdb, os.listdir(subfolder_name))
 
-  for audiofilename in os.listdir(subfolder_name):
-    pre, ext = os.path.splitext(audiofilename)
-
-    # Generate and save to disk
-    audio_path = os.path.join(subfolder_name, audiofilename)
-    output_filename = os.path.join(output_path, f"{emotion}/{pre}.png")
-
-    audio_to_mel_spectrogram(
-      input_audio_path = audio_path,
-      output_image_path = output_filename,
-    )
-
-    count += 1
-    if count % 100 == 0:
-      gc.collect()
 
 RE_EXTRACT_EMOTION = re.compile(r"\w+_(\w+)_.*_.*\.wav")
 
@@ -190,14 +192,15 @@ jl_emotions_codes = {
 
 dataset_path = os.path.join(root, "jl-corpus/")
 
-for audio_file in os.listdir(dataset_path):
+
+def job_jl(audio_file):
   pre, ext = os.path.splitext(audio_file)
 
   # in this dataset the emotionCode is written inside the name
   emotionCode = RE_EXTRACT_EMOTION.findall(audio_file)[0]
   if emotionCode not in jl_emotions_codes:
     print("Unknown emotion " + emotionCode)
-    continue
+    return
 
   out_path =  os.path.join(output_path, jl_emotions_codes[emotionCode], f"jl_{pre}.png")
 
@@ -207,7 +210,44 @@ for audio_file in os.listdir(dataset_path):
       input_audio_path = audio_path,
       output_image_path = out_path,
   )
-  gc.collect()
+
+
+with Pool(N_JOBS) as p:
+  p.map(job_jl, os.listdir(dataset_path))
+
+
+meld_emotions_codes = {
+  "joy": "HAPPINESS",
+  "anger": "ANGER",
+  "disgust": "DISGUST",
+  "neutral": "NEUTRAL",
+  "sadness": "SADNESS"
+}
+
+dataset_path = os.path.join(root, "MELD.proc/")
+RE_EXTRACT_EMOTION_MELD = re.compile(r"\d+_(\w+)_.*")
+
+
+def job_meld(audio_file):
+  pre, ext = os.path.splitext(audio_file)
+
+  # in this dataset the emotionCode is written inside the name
+  emotionCode = RE_EXTRACT_EMOTION_MELD.findall(audio_file)[0]
+  if emotionCode not in meld_emotions_codes:
+    print("Unknown emotion " + emotionCode)
+    return
+
+  out_path =  os.path.join(output_path, meld_emotions_codes[emotionCode], f"meld_{pre}.png")
+
+  audio_path = os.path.join(dataset_path, audio_file)
+
+  audio_to_mel_spectrogram(
+      input_audio_path = audio_path,
+      output_image_path = out_path,
+  )
+
+with Pool(N_JOBS) as p:
+  p.map(job_meld, os.listdir(dataset_path))
 
 count = {}
 
