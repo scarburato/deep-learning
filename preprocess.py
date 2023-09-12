@@ -26,49 +26,54 @@ def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, durati
     _, index = librosa.effects.trim(y)
     y = y[index[0]:index[1]] # Using directly the function's return doesn't work
 
-    if librosa.get_duration(y=y, sr=sr) < duration:
+    file_duration = librosa.get_duration(y=y, sr=sr)
+    if file_duration < duration:
       print(f"Audio duration is shorter than {duration} seconds. Skipping spectrogram generation.")
       return
 
-    # cut
-    y = y[:librosa.time_to_samples(duration, sr=sr)]
+    chunks = int(file_duration // duration)
+    duration_in_samples = librosa.time_to_samples(duration, sr=sr)
+    for i in range(0, chunks):
+      # cut
+      y_cut = y[duration_in_samples*i:duration_in_samples*(i+1)]
 
-    # Compute the Mel spectrogram
-    mel_spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
+      # Compute the Mel spectrogram
+      mel_spectrogram = librosa.feature.melspectrogram(y=y_cut, sr=sr)
 
-    # Convert to decibels (log scale)
-    mel_spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+      # Convert to decibels (log scale)
+      mel_spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
 
-    # Create a Matplotlib figure without axes
-    fig, ax = plt.subplots(figsize=mel_spectrogram_db.shape,frameon=False)
+      spectrogram_to_png(mel_spectrogram_db, output_image_path, dpi)
 
-    # Display the Mel spectrogram without axes or color bar
-    librosa.display.specshow(mel_spectrogram_db, x_axis=None, y_axis=None)
+def spectrogram_to_png(mel_spectrogram_db, output_image_path: str, dpi):
+  assert mel_spectrogram_db.min() >= -80.0 and abs(mel_spectrogram_db.max()) < 1e-3
+  # Create a Matplotlib figure without axes
+  fig, ax = plt.subplots(figsize=mel_spectrogram_db.shape, frameon=False)
 
-    # Remove whitespace around the image
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+  # Display the Mel spectrogram without axes or color bar
+  librosa.display.specshow(mel_spectrogram_db, x_axis=None, y_axis=None)
 
-    if USE_GRAYSCALE:
-      plt.gray()
-      plt.set_cmap("gray")
+  # Remove whitespace around the image
+  plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
-    # Save the Mel spectrogram as a PNG image
-    plt.savefig(
-        output_image_path,
-        pil_kwargs={'compress_level':0},
-        dpi=dpi, bbox_inches='tight', pad_inches=0, transparent=True
-    )
+  if USE_GRAYSCALE:
+    plt.gray()
+    plt.set_cmap("gray")
 
-    plt.close(fig)
+  # Save the Mel spectrogram as a PNG image
+  plt.savefig(
+    output_image_path,
+    pil_kwargs={'compress_level': 0},
+    dpi=dpi, bbox_inches='tight', pad_inches=0, transparent=True
+  )
 
-    if USE_GRAYSCALE:
-      # Schifo perché plt non sa cos'è un PNG a singolo canale mannaggia
-      i = Image.open(output_image_path)
-      i.convert('L').save(output_image_path)
-      i.close()
+  plt.close(fig)
 
-    for i in range(len(y)):
-      y[i] = None
+  if USE_GRAYSCALE:
+    # Schifo perché plt non sa cos'è un PNG a singolo canale mannaggia
+    i = Image.open(output_image_path)
+    i.convert('L').save(output_image_path)
+    i.close()
 
 
 kraut_emotions_codes = {
@@ -113,22 +118,55 @@ for audio_file in os.listdir(dataset_path):
 
 csv_f.close()
 
+emovo_emotions_codes = {
+  "neu": "NEUTRAL",
+  "dis": "DISGUST",
+  "gio": "HAPPINESS",
+  "pau": "ANXIETY",
+  "rab": "ANGER",
+  "sor": "HAPPINESS",
+  "tri": "SADNESS"
+}
+
+dataset_path = os.path.join(root, "EMOVO/")
+
+for actor_folder in ["m3","m2","m1","f3","f2","f1"]:
+  folderpath = os.path.join(dataset_path, actor_folder)
+  print("Analysis of " + folderpath)
+
+  for audio_file in os.listdir(folderpath):
+    emotionCode = audio_file[0:3]
+
+    if emotionCode not in emovo_emotions_codes:
+      print("Unknown emotion " + emotionCode)
+      continue
+
+    pre, ext = os.path.splitext(audio_file)
+    out_path =  os.path.join(output_path, emovo_emotions_codes[emotionCode], f"emovo_{pre}.png")
+
+    audio_path = os.path.join(folderpath, audio_file)
+
+    audio_to_mel_spectrogram(
+        input_audio_path = audio_path,
+        output_image_path = out_path,
+    )
+
 import gc
 
 emovdb_emotions_codes = {
     "bea_Amused" : "HAPPINESS",
     "bea_Angry" : "ANGER",
-    #"bea_Disgusted" : "",
+    "bea_Disgusted" : "DISGUST",
     "bea_Neutral" : "NEUTRAL",
     "bea_Sleepy" : "BOREDOM",
     "jenie_Amused" : "HAPPINESS",
     "jenie_Angry" : "ANGER",
-    #"jenie_Disgusted" : "",
+    "jenie_Disgusted" : "DISGUST",
     "jenie_Neutral" : "NEUTRAL",
     "josh_Amused" : "HAPPINESS",
     "josh_Neutral" : "NEUTRAL",
     "josh_Sleepy" : "BOREDOM",
-    #"sam_Disgusted" : "",
+    "sam_Disgusted" : "DISGUST",
     "sam_Neutral" : "NEUTRAL",
     "sam_Sleepy" : "BOREDOM",
 }
