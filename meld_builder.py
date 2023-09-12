@@ -42,4 +42,4 @@ input_root = sys.argv[3]
 assert os.path.isdir(output_root) and os.path.isdir(input_root)
 
 with Pool(17) as p:
-  print(p.map(process_tuple, csvreader))
+  p.map(process_tuple, csvreader)
