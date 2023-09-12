@@ -1,3 +1,5 @@
+import time
+
 import librosa
 import librosa.display
 import numpy as np
@@ -45,35 +47,16 @@ def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, durati
 
       spectrogram_to_png(mel_spectrogram_db, output_image_path, dpi)
 
+
 def spectrogram_to_png(mel_spectrogram_db, output_image_path: str, dpi):
   assert mel_spectrogram_db.min() >= -80.0 and abs(mel_spectrogram_db.max()) < 1e-3
-  # Create a Matplotlib figure without axes
-  fig, ax = plt.subplots(figsize=mel_spectrogram_db.shape, frameon=False)
 
-  # Display the Mel spectrogram without axes or color bar
-  librosa.display.specshow(mel_spectrogram_db, x_axis=None, y_axis=None)
+  mel_spectrogram_db = mel_spectrogram_db * (255.0/-80.0)
+  mel_spectrogram_db = np.maximum(0, mel_spectrogram_db).transpose()
 
-  # Remove whitespace around the image
-  plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-
-  if USE_GRAYSCALE:
-    plt.gray()
-    plt.set_cmap("gray")
-
-  # Save the Mel spectrogram as a PNG image
-  plt.savefig(
-    output_image_path,
-    pil_kwargs={'compress_level': 0},
-    dpi=dpi, bbox_inches='tight', pad_inches=0, transparent=True
-  )
-
-  plt.close(fig)
-
-  if USE_GRAYSCALE:
-    # Schifo perché plt non sa cos'è un PNG a singolo canale mannaggia
-    i = Image.open(output_image_path)
-    i.convert('L').save(output_image_path)
-    i.close()
+  i = Image.fromarray(mel_spectrogram_db.astype(np.uint8), mode = "L")
+  i.save(output_image_path)
+  i.close()
 
 
 kraut_emotions_codes = {
