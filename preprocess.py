@@ -22,7 +22,7 @@ def extrac_voice(y, sr, duration):
   S_filter = librosa.decompose.nn_filter(S_full,
                                          aggregate=np.median,
                                          metric='cosine',
-                                         width=int(librosa.time_to_frames(min(1.2, duration - 0.05), sr=sr)))
+                                         )
   S_filter = np.minimum(S_full, S_filter)
   margin_i, margin_v = 2, 10
   power = 2
