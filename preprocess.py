@@ -181,6 +181,8 @@ for folder_name, emotion in emovdb_emotions_codes.items():
 
 RE_EXTRACT_EMOTION = re.compile(r"\w+_(\w+)_.*_.*\.wav")
 
+# 5 primary emotions: angry, sad, neutral, happy, excited. 5 secondary emotions: anxious, apologetic, pensive, worried, enthusiastic.
+
 jl_emotions_codes = {
   "angry": "ANGER",
   "anxious": "ANXIETY",
@@ -188,6 +190,7 @@ jl_emotions_codes = {
   "sad": "SADNESS",
   "neutral": "NEUTRAL",
   "excited": "HAPPINESS", # @TODO DECIDE IF TRUE LOL
+  "pensive": "BOREDOM"
 }
 
 dataset_path = os.path.join(root, "jl-corpus/")
@@ -215,6 +218,8 @@ def job_jl(audio_file):
 with Pool(N_JOBS) as p:
   p.map(job_jl, os.listdir(dataset_path))
 
+
+# anger disgust fear joy neutral sadness surprise
 
 meld_emotions_codes = {
   "joy": "HAPPINESS",
@@ -248,6 +253,44 @@ def job_meld(audio_file):
 
 with Pool(N_JOBS) as p:
   p.map(job_meld, os.listdir(dataset_path))
+
+
+# Emotion (01 = neutral, 02 = calm, 03 = happy, 04 = sad, 05 = angry, 06 = fearful, 07 = disgust, 08 = surprised).
+# Emotional intensity (01 = normal, 02 = strong). NOTE: There is no strong intensity for the 'neutral' emotion.
+
+ravdess_emotions_codes = {
+  "05": "ANGER",
+  "07": "DISGUST",
+  "06": "ANXIETY",
+  "03": "HAPPINESS",
+  "04": "SADNESS",
+  "01": "NEUTRAL"
+}
+
+dataset_path = os.path.join(root, "RAVDESS/")
+RE_EXTRACT_EMOTION_RAVDESS= re.compile(r"\d+-\d+-(\d+)-.*")
+
+
+def job_ravdess(audio_file):
+  pre, ext = os.path.splitext(audio_file)
+
+  # in this dataset the emotionCode is written inside the name
+  emotionCode = RE_EXTRACT_EMOTION_RAVDESS.findall(audio_file)[0]
+  if emotionCode not in ravdess_emotions_codes:
+    print("Unknown emotion " + emotionCode)
+    return
+
+  out_path =  os.path.join(output_path, ravdess_emotions_codes[emotionCode], f"ravdess_{pre}.png")
+
+  audio_path = os.path.join(dataset_path, audio_file)
+
+  audio_to_mel_spectrogram(
+      input_audio_path = audio_path,
+      output_image_path = out_path,
+  )
+
+with Pool(N_JOBS) as p:
+  p.map(job_ravdess, os.listdir(dataset_path))
 
 count = {}
 
