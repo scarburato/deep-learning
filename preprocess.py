@@ -14,6 +14,36 @@ root = "data"
 output_path = "build/processed"
 USE_GRAYSCALE = True
 N_JOBS = 6
+ISOLATE_VOICE = True
+
+
+def extrac_voice(y, sr, duration):
+  S_full, phase = librosa.magphase(librosa.stft(y))
+  S_filter = librosa.decompose.nn_filter(S_full,
+                                         aggregate=np.median,
+                                         metric='cosine',
+                                         width=int(librosa.time_to_frames(min(1.2, duration - 0.05), sr=sr)))
+  S_filter = np.minimum(S_full, S_filter)
+  margin_i, margin_v = 2, 10
+  power = 2
+
+  #mask_i = librosa.util.softmask(S_filter,
+  #                               margin_i * (S_full - S_filter),
+  #                               power=power)
+
+  mask_v = librosa.util.softmask(S_full - S_filter,
+                                 margin_v * S_filter,
+                                 power=power)
+
+  # Once we have the masks, simply multiply them with the input spectrum
+  # to separate the components
+  S_foreground = mask_v * S_full
+  #S_background = mask_i * S_full
+  D_foreground = S_foreground * phase
+  y_foreground = librosa.istft(D_foreground)
+
+  return y_foreground
+
 
 def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=2, dpi=1, force=False):
     if not force and os.path.exists(output_image_path):
@@ -34,6 +64,10 @@ def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, durati
     if file_duration < duration:
       print(f"Audio duration is shorter than {duration} seconds. Skipping spectrogram generation.")
       return
+
+    # Extract voice
+    if ISOLATE_VOICE:
+      y = extrac_voice(y, sr, duration)
 
     chunks = int(file_duration // duration)
     duration_in_samples = librosa.time_to_samples(duration, sr=sr)
@@ -77,7 +111,7 @@ for key, value in kraut_emotions_codes.items():
   folder_name = os.path.join(output_path, value)
   os.makedirs(folder_name, exist_ok=True)
 
-os.makedirs(os.path.join(output_path, "SURPRISE"))
+os.makedirs(os.path.join(output_path, "SURPRISE"), exist_ok=True)
 
 
 def job_kraut(audio_file):
