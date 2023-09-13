@@ -14,7 +14,7 @@ root = "data"
 output_path = "build/processed"
 USE_GRAYSCALE = True
 N_JOBS = 6
-ISOLATE_VOICE = True
+ISOLATE_VOICE = False
 
 
 def extrac_voice(y, sr, duration):

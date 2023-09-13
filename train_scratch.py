@@ -11,7 +11,7 @@ Original file is located at
 In this file we TRAIN.
 """
 
-LOCAL_MODE = False
+LOCAL_MODE = True
 
 #if not LOCAL_MODE:
 #  from google.colab import drive
@@ -20,6 +20,8 @@ LOCAL_MODE = False
 #  drive.mount('/content/drive', force_remount=True)
 #
 #  !cd /content; rm -r processed; 7z x drive/Shareddrives/deep_learning/processed.128_87.7z; ls -alF processed
+#  TRAIN_PATH = "/content/processed/"
+#  LOCAL_MODELS_FOLDER = "/content/drive/Shareddrives/deep_learning/models"
 #
 #!pip install tensorflow --quiet
 
@@ -27,6 +29,20 @@ import numpy as np
 import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import sys
+import shutil
+from sklearn import metrics
+import sklearn
+import itertools
+
+if LOCAL_MODE:
+  TRAIN_PATH = sys.argv[1]
+  LOCAL_MODELS_FOLDER = sys.argv[2]
+
+  assert os.path.isdir(TRAIN_PATH), "arg 1 must be a folder!"
+
+  os.makedirs(LOCAL_MODELS_FOLDER, exist_ok=True)
+  assert os.path.isdir(LOCAL_MODELS_FOLDER), "arg 2 must be a folder!"
 
 #!mkdir -p /content/drive/Shareddrives/deep_learning/models
 
@@ -37,8 +53,6 @@ import matplotlib.pyplot as plt
 
 BATCH_SIZE = 32
 WIDTH, HEIGHT = 128, 87
-TRAIN_PATH = "/content/processed/"
-LOCAL_MODELS_FOLDER = "/content/drive/Shareddrives/deep_learning/models"
 EPOCHS = 30
 
 # helper class to switch between color-modes
@@ -55,6 +69,7 @@ class Colors:
 
 COLOR_MODE = Colors.GRAYSCALE
 
+
 def compile_model(model):
   model.compile(
       optimizer='adam',
@@ -62,7 +77,14 @@ def compile_model(model):
       metrics=['accuracy'],
   )
 
+
 def trainmaxx(model, name):
+    out_folder = os.path.join(LOCAL_MODELS_FOLDER, name)
+    if os.path.exists(out_folder):
+      shutil.rmtree(out_folder)
+
+    os.makedirs(out_folder, exist_ok=True)
+
     # define useful callbacks
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor='loss',
@@ -71,14 +93,14 @@ def trainmaxx(model, name):
     )
 
     save_best_model = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(LOCAL_MODELS_FOLDER, name),
+        os.path.join(out_folder, name + ".h5"),
         monitor='val_loss',
         save_best_only=True,
         save_weights_only=True,
     )
 
     # csv logger
-    logpath = os.path.join(LOCAL_MODELS_FOLDER, name + "_stats.csv")
+    logpath = os.path.join(out_folder, "stats.csv")
     if os.path.exists(logpath):
       os.remove(logpath)
 
@@ -90,7 +112,7 @@ def trainmaxx(model, name):
     # Train the model
     history = model.fit(
         train_dataset,
-        epochs=EPOCHS,
+        epochs=4,
         validation_data=val_dataset,
 
         callbacks=[
@@ -103,7 +125,6 @@ def trainmaxx(model, name):
         workers=4
     )
 
-
     # Plot training history (optional)
     plt.plot(history.history['accuracy'], label='accuracy')
     plt.plot(history.history['val_accuracy'], label='val_accuracy')
@@ -112,6 +133,34 @@ def trainmaxx(model, name):
     plt.ylim([0, 1])
     plt.legend(loc='lower right')
     plt.show()
+    plt.savefig(os.path.join(out_folder, "learning_history.png"))
+
+    # PLot confusion graph
+    preds = model.predict(test_dataset)
+    Y_pred = np.argmax(preds, axis=1)
+
+    # Confusion matrix
+    cm = metrics.confusion_matrix(Y_test, Y_pred, normalize='pred')
+
+    plt.figure(figsize=(30, 30))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Confusion Matrix')
+    plt.colorbar()
+
+    tick_marks = np.arange(N_CLASSES)
+    plt.xticks(tick_marks, CLASSES, rotation=45)
+    plt.yticks(tick_marks, CLASSES)
+
+    thresh = cm.max() / 2.
+    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+      plt.text(j, i, cm[i, j], horizontalalignment='center', color='white' if cm[i, j] > thresh else 'black')
+
+    plt.tight_layout()
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+
+    plt.show()
+    plt.savefig(os.path.join(out_folder, "confusion_matrix.png"))
 
 try:
   resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
@@ -138,16 +187,32 @@ dataset = image_dataset_from_directory(
     seed=42,
 )
 
+CLASSES = dataset.class_names
 N_CLASSES = len(dataset.class_names)
 
 # Calculate the number of validation samples
 N_SAMPLES = dataset.cardinality().numpy()
 
-VALIDATION_SAMPLES = int(0.2 * N_SAMPLES)  # 20% of data for validation
+VALIDATION_SAMPLES = int(0.175 * N_SAMPLES)  # 20% of data for validation
 
 # Split the dataset into training and validation
 train_dataset = dataset.skip(VALIDATION_SAMPLES)
 val_dataset = dataset.take(VALIDATION_SAMPLES)
+train_dataset = train_dataset.skip(VALIDATION_SAMPLES)
+test_dataset = train_dataset.take(VALIDATION_SAMPLES)
+
+X_test = []
+Y_test = []
+
+for images, labels in test_dataset:
+    for image in images:
+        X_test.append(image)                    # append tensor
+        #X.append(image.numpy())           # append numpy.array
+        #X.append(image.numpy().tolist())  # append list
+    for label in labels:
+        Y_test.append(label)                    # append tensor
+        #Y.append(label.numpy())           # append numpy.array
+        #Y.append(label.numpy().tolist())  # append list
 
 def CreateModel():
   model = tf.keras.Sequential([
