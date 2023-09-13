@@ -140,7 +140,7 @@ def trainmaxx(model, name):
     Y_pred = np.argmax(preds, axis=1)
 
     # Confusion matrix
-    cm = metrics.confusion_matrix(Y_test, Y_pred, normalize='pred')
+    cm = metrics.confusion_matrix(Y_test, Y_pred)
 
     plt.figure(figsize=(30, 30))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
