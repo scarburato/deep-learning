@@ -15,7 +15,7 @@ output_path = "build/processed"
 USE_GRAYSCALE = True
 N_JOBS = 6
 
-def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=1.5, dpi=1, force=False):
+def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=2, dpi=1, force=False):
     if not force and os.path.exists(output_image_path):
       return
 
@@ -77,6 +77,8 @@ for key, value in kraut_emotions_codes.items():
   folder_name = os.path.join(output_path, value)
   os.makedirs(folder_name, exist_ok=True)
 
+os.makedirs(os.path.join(output_path, "SURPRISE"))
+
 
 def job_kraut(audio_file):
   pre, ext = os.path.splitext(audio_file)
@@ -105,7 +107,7 @@ emovo_emotions_codes = {
   "gio": "HAPPINESS",
   "pau": "ANXIETY",
   "rab": "ANGER",
-  "sor": "HAPPINESS",
+  "sor": "SURPRISE",
   "tri": "SADNESS"
 }
 
@@ -190,7 +192,8 @@ jl_emotions_codes = {
   "sad": "SADNESS",
   "neutral": "NEUTRAL",
   "excited": "HAPPINESS", # @TODO DECIDE IF TRUE LOL
-  "pensive": "BOREDOM"
+  "pensive": "BOREDOM",
+  "enthusiastic": "SURPRISE"
 }
 
 dataset_path = os.path.join(root, "jl-corpus/")
@@ -226,7 +229,8 @@ meld_emotions_codes = {
   "anger": "ANGER",
   "disgust": "DISGUST",
   "neutral": "NEUTRAL",
-  "sadness": "SADNESS"
+  "sadness": "SADNESS",
+  "surprise": "SURPRISE"
 }
 
 dataset_path = os.path.join(root, "MELD.proc/")
@@ -264,7 +268,8 @@ ravdess_emotions_codes = {
   "06": "ANXIETY",
   "03": "HAPPINESS",
   "04": "SADNESS",
-  "01": "NEUTRAL"
+  "01": "NEUTRAL",
+  "08": "SURPRISE"
 }
 
 dataset_path = os.path.join(root, "RAVDESS/")
