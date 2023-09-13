@@ -56,7 +56,10 @@ report/*.out
 report/*.pdf
 report/*.gz
 report/*.toc
-
+report/chapters/*.aux
+report/chapters/*.log
+report/report.bbl
+report/report.blg
 
 data/
 build/
