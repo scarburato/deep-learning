@@ -112,7 +112,7 @@ def trainmaxx(model, name):
     # Train the model
     history = model.fit(
         train_dataset,
-        epochs=4,
+        epochs=EPOCHS,
         validation_data=val_dataset,
 
         callbacks=[
