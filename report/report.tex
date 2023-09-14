@@ -26,23 +26,43 @@
 % Carattere monospaziato di default
 \renewcommand{\ttdefault}{pcr}
 
-\lstset{
+% Stile del codice
+\lstdefinestyle{codeStyle}{
+	% Colore dei commenti
+	commentstyle=\color{teal},
+	% Colore delle keyword
+	keywordstyle=\color{magenta},
+	% Stile dei numeri di riga
+	numberstyle=\tiny\color{gray},
+	% Colore delle stringhe
+	stringstyle=\color{violet},
+	% Dimensione e stile del testo
+	basicstyle=\ttfamily\scriptsize,
+	% newline solo ai whitespaces
+	breakatwhitespace=false,     
+	% newline si/no
+	breaklines=true,                 
+	% Posizione della caption, top/bottom 
+	captionpos=b,                    
+	% Mantiene gli spazi nel codice, utile per l'indentazione
+	keepspaces=true,                 
+	% Dove visualizzare i numeri di linea
+	numbers=left,                    
+	% Distanza tra i numeri di linea
+	numbersep=5pt,                  
+	% Mostra gli spazi bianchi o meno
+	showspaces=false,                
+	% Mostra gli spazi bianchi nelle stringhe
+	showstringspaces=false,
+	% Mostra i tab
+	showtabs=false,
+	% Dimensione dei tab
+	tabsize=2,
+	% accenti
+	literate={á}{{\'a}}1 {à}{{\`a}}1 {é}{{\'e}}1 {è}{{\`e}}1,
 	% wrap long lines on new line
 	postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
-	breaklines=true, 
-	columns=fullflexible,
-	% tab and fonts
-	tabsize=2,
-	basicstyle=\ttfamily\small,
-	% theme
-	numbers=left,
-	rulecolor=\color{black!30},	
-	% UTF8 and escape
-	escapeinside={\%TEX}{\^^M},
-	inputencoding=utf8,
-	extendedchars=true,
-	literate={á}{{\'a}}1 {à}{{\`a}}1 {é}{{\'e}}1 {è}{{\`e}}1,
-}
+} \lstset{style=codeStyle}
 
 
 % Title Page
