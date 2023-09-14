@@ -1,2 +1,40 @@
 \chapter{Training}
 
+\section{Network from scratch}
+
+\paragraph{Modus Operandi}
+We used the \emph{trial-and-error} approach to create the networks discussed in this chapter, since there are too many hyper-parameters to try.  We started with a small model that did not fit well and then gradually increase
+its size until it started to generalize. We also tried to augment the input data by playing with the pictures' contrast in a model but with unimpressive results.
+
+\paragraph{General Architecture}
+We opted for a batch size of 32, representing the number of samples considered in each iteration. Following the input layer, we applied normalization using a Rescaling Layer to ensure that each pixel value falls within the $[0,1]$ range. Our choice then led us to employ four convolutional layers, incorporating zero-padding to grant equal significance to every pixel within the image. This approach is valuable because even the border regions hold relevance, despite our efforts to crop the images as extensively as possible. We kept the stride at its default value of 1 to avoid any adverse impact on accuracy. Our activation functions of choice were ReLU, defined as $f(x) = \max\{0, x\}$. For the size of the local receptive fields, we stuck with the default 3x3 dimensions.
+
+In the initial convolutional layer, we utilized 32 filters, with a doubling of filter count for each subsequent convolutional layer. To enhance feature extraction, we applied max-pooling after each convolutional layer, thereby consolidating small regions into a single value.
+
+\subsection{Two dense layers}
+
+\paragraph{Architecture}
+We used two dense layers with 128 and 256 neurons:
+
+\lstinputlisting[language=Python,linerange={218-233}]{../train_scratch.py}
+
+We tried a low drop-out to fight against overfitting.
+
+\paragraph{Results}
+
+\subsection{Three dense layers}
+
+\subsection{Data augmentation}
+
+\paragraph{Architecture}
+
+\paragraph{Augmentation}
+We used a layer \texttt{tf.keras.layers.RandomContrast(0.5)} to adjust the spectrograms' contrasts during training
+
+\paragraph{Result}
+
+\section{Pre-trained models}
+
+\subsection{Feature extraction from VGG16}
+
+\subsection{Fine tuning with VGG16}

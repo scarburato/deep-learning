@@ -307,7 +307,7 @@ with strategy.scope():
 
 model.summary()
 
-trainmaxx(model, "model1")
+# trainmaxx(model, "model1")
 
 def CreateModel():
   model = tf.keras.Sequential([
