@@ -52,7 +52,7 @@ if LOCAL_MODE:
 """
 
 BATCH_SIZE = 32
-WIDTH, HEIGHT = 128, 87
+WIDTH, HEIGHT = 128, 151
 EPOCHS = 30
 
 # helper class to switch between color-modes

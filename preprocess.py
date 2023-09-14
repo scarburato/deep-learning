@@ -19,17 +19,10 @@ ISOLATE_VOICE = False
 
 def extrac_voice(y, sr, duration):
   S_full, phase = librosa.magphase(librosa.stft(y))
-  S_filter = librosa.decompose.nn_filter(S_full,
-                                         aggregate=np.median,
-                                         metric='cosine',
-                                         )
+  S_filter = librosa.decompose.nn_filter(S_full, aggregate=np.median, metric='cosine',)
   S_filter = np.minimum(S_full, S_filter)
   margin_i, margin_v = 2, 10
   power = 2
-
-  #mask_i = librosa.util.softmask(S_filter,
-  #                               margin_i * (S_full - S_filter),
-  #                               power=power)
 
   mask_v = librosa.util.softmask(S_full - S_filter,
                                  margin_v * S_filter,
@@ -38,14 +31,13 @@ def extrac_voice(y, sr, duration):
   # Once we have the masks, simply multiply them with the input spectrum
   # to separate the components
   S_foreground = mask_v * S_full
-  #S_background = mask_i * S_full
   D_foreground = S_foreground * phase
   y_foreground = librosa.istft(D_foreground)
 
   return y_foreground
 
 
-def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=2, dpi=1, force=False):
+def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, duration=1.75, dpi=1, force=False):
     if not force and os.path.exists(output_image_path):
       return
 
@@ -53,7 +45,8 @@ def audio_to_mel_spectrogram(input_audio_path:str, output_image_path:str, durati
     y, sr = librosa.load(
         input_audio_path,
         #duration=duration,
-        mono=True
+        mono=True,
+        sr=44100
     )
 
     # Trim silent parts
@@ -121,7 +114,7 @@ def job_kraut(audio_file):
   emotionCode = pre[5]
   emotion = kraut_emotions_codes[emotionCode]
 
-  out_file =  f"{emotion}/{pre}.png"
+  out_file =  f"{emotion}/kraut_{pre}.png"
   out_path =  os.path.join(output_path, out_file)
 
   audio_path = os.path.join(dataset_path, audio_file)
@@ -201,7 +194,7 @@ def job_emovdb(audiofilename):
 
   # Generate and save to disk
   audio_path = os.path.join(subfolder_name, audiofilename)
-  output_filename = os.path.join(output_path, f"{emotion}/{pre}.png")
+  output_filename = os.path.join(output_path, f"{emotion}/emovodb_{pre}.png")
 
   audio_to_mel_spectrogram(
     input_audio_path=audio_path,
@@ -328,8 +321,8 @@ def job_ravdess(audio_file):
       output_image_path = out_path,
   )
 
-with Pool(N_JOBS) as p:
-  p.map(job_ravdess, os.listdir(dataset_path))
+#with Pool(N_JOBS) as p:
+#  p.map(job_ravdess, os.listdir(dataset_path))
 
 count = {}
 
