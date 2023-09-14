@@ -32,7 +32,6 @@ import matplotlib.pyplot as plt
 import sys
 import shutil
 from sklearn import metrics
-import sklearn
 import itertools
 
 if LOCAL_MODE:
@@ -52,7 +51,7 @@ if LOCAL_MODE:
 """
 
 BATCH_SIZE = 32
-WIDTH, HEIGHT = 128, 151
+WIDTH, HEIGHT = 128, 65
 EPOCHS = 30
 
 # helper class to switch between color-modes
@@ -71,10 +70,17 @@ COLOR_MODE = Colors.GRAYSCALE
 
 
 def compile_model(model):
+
+  import tensorflow_addons as tfa
+
+  f1 = tfa.metrics.F1Score(num_classes=N_CLASSES, average='micro')
+
   model.compile(
       optimizer='adam',
       loss='sparse_categorical_crossentropy',
-      metrics=['accuracy'],
+      metrics=[
+        f1,
+      ],
   )
 
 
@@ -114,7 +120,7 @@ def trainmaxx(model, name):
         train_dataset,
         epochs=EPOCHS,
         validation_data=val_dataset,
-
+        validation_steps=len(val_dataset),
         callbacks=[
             csv_logger,
             early_stop,
@@ -126,23 +132,30 @@ def trainmaxx(model, name):
     )
 
     # Plot training history (optional)
-    plt.plot(history.history['accuracy'], label='accuracy')
-    plt.plot(history.history['val_accuracy'], label='val_accuracy')
+    plt.figure(figsize=(10,10))
+    plt.plot(history.history['f1_score'], label='f1_score')
+    plt.plot(history.history['val_f1_score'], label='val_f1_score')
     plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
+    plt.ylabel('F1-score')
     plt.ylim([0, 1])
     plt.legend(loc='lower right')
     plt.show()
     plt.savefig(os.path.join(out_folder, "learning_history.png"))
+    plt.close()
 
     # PLot confusion graph
     preds = model.predict(test_dataset)
     Y_pred = np.argmax(preds, axis=1)
 
     # Confusion matrix
-    cm = metrics.confusion_matrix(Y_test, Y_pred)
 
-    plt.figure(figsize=(30, 30))
+    rounded_labels=np.argmax(Y_test, axis=1)
+    rounded_labels[1]
+
+    cm = metrics.confusion_matrix(rounded_labels, Y_pred, normalize = 'true')
+    cm = np.trunc(cm*10**2)/(10**2)
+
+    plt.figure(figsize=(10, 10))
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
     plt.title('Confusion Matrix')
     plt.colorbar()
@@ -161,6 +174,7 @@ def trainmaxx(model, name):
 
     plt.show()
     plt.savefig(os.path.join(out_folder, "confusion_matrix.png"))
+    plt.close()
 
 try:
   resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
@@ -184,7 +198,8 @@ dataset = image_dataset_from_directory(
     color_mode=COLOR_MODE.keyword,
     batch_size=BATCH_SIZE,
     shuffle=True,
-    seed=42,
+    seed=0xcafebabe,
+    label_mode="categorical",
 )
 
 CLASSES = dataset.class_names
@@ -298,19 +313,21 @@ def CreateModel():
   model = tf.keras.Sequential([
       tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
       tf.keras.layers.Rescaling(1./255),
-      tf.keras.layers.Conv2D(512, (3, 3), activation='relu6'),
+      tf.keras.layers.Conv2D(128, (3, 3), activation='relu6'),
       tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(1024, (3, 3), activation='relu'),
+      tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
       tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(2048, (3, 3), activation='relu'),
+      tf.keras.layers.Conv2D(512, (3, 3), activation='relu'),
       tf.keras.layers.MaxPooling2D((2, 2)),
       tf.keras.layers.Conv2D(1024, (3, 3), activation='relu'),
       tf.keras.layers.MaxPooling2D((2, 2)),
       tf.keras.layers.Flatten(),
+      tf.keras.layers.Dense(1024, activation='relu'),
+      tf.keras.layers.Dropout(0.6),
+      tf.keras.layers.Dense(1024, activation='relu'),
+      tf.keras.layers.Dropout(0.6),
       tf.keras.layers.Dense(512, activation='relu'),
-      tf.keras.layers.Dropout(0.3),
-      tf.keras.layers.Dense(512, activation='relu'),
-      tf.keras.layers.Dropout(0.3),
+      tf.keras.layers.Dropout(0.6),
       tf.keras.layers.Dense(N_CLASSES, activation='softmax')
   ])
 
