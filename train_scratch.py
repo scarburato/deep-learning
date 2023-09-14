@@ -228,7 +228,6 @@ def CreateModel():
       tf.keras.layers.Dense(128, activation='relu'),
       tf.keras.layers.Dropout(0.3),
       tf.keras.layers.Dense(256, activation='relu'),
-      tf.keras.layers.Dense(128, activation='relu'),
       tf.keras.layers.Dropout(0.3),
       tf.keras.layers.Dense(N_CLASSES, activation='softmax')
   ])

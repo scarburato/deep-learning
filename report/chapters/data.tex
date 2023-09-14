@@ -27,3 +27,57 @@ We combined multiple dataset to create our voices' corpus:
 
 \section{Preprocessing}
 
+\paragraph{Formats}
+We were presented with a variety of audio formats, such as WAW and OGG, from those we created the MEL spectrograms with \texttt{librosa}'s help, a Python library to handle audio signals from heterogeneous sources
+
+\paragraph{Spectrograms}
+Each audio sample was loaded with a sampling rate of 44100 Hertz, file which had a different sampling rate were automatically resampled by the library; then each sample was divided, when possible, in multiple segments of 1.75 seconds of length each; finally spectrograms were computed and saved to single channel PNG file.
+
+\paragraph{Classes}
+Each PNG was saved in a sub-directory named after its class.
+
+\paragraph{Multiprocessing}
+Python's multiprocessing capabilities were used to speed-up the computation.
+
+\paragraph{Procedure and example}
+Here it follows the procedure used to generate the images:
+
+\lstinputlisting[language=Python, linerange={20-89}]{../preprocess.py}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7\linewidth, angle=90, interpolate=false]{assets/ex1.big.png}
+	\caption{Example of spectrogram of length 1.75 seconds}
+	\label{fig:ex2}
+\end{figure}
+
+\section{Classes}
+
+\paragraph{}
+After re-balancing the dataset we're left with the following data
+
+
+\vspace{10mm}
+\begin{tabular}{|c|r|r|}
+	\hline
+	Class & Cardinality & Ratio \\
+	\hline\hline
+	SURPRISE	& 916 & 14.38\% \\
+	\hline
+	SADNESS		& 1077 & 16.91\% \\
+	\hline
+	NEUTRAL		& 1014 & 15.92\%\\
+	\hline
+	HAPPINESS	& 1129 & 17.73\%\\
+	\hline
+	DISGUST		& 1185 & 18.61\%\\
+	\hline
+	ANGER		& 1047 & 16.44\%\\
+	\hline\hline
+	\textbf{Total} & 6368 & 100\% \\
+	\hline
+\end{tabular}
+
+\paragraph{}
+Pictures are 128x151 in size.
+
