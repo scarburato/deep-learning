@@ -18,5 +18,8 @@ while reaching almost 100\% accuracy on the training set, this might be due to \
 
 \section{Model selection}
 
+\paragraph{Winner}
+Using $A_\text{val}$ as the choosing metric, we see that models trained from scratch with one \ref{scratch.1dense} and two \ref{scratch.2dense} dense layers come on top, with an accuracy $A_val = 0.91$. Using \textbf{Occam's razor} (\textit{novacula Occami}) principle --- «[e]ntities must not be multiplied beyond necessity», commonly rephrased in «the simplest explanation is usually the best one» \cite{enwiki:1173975697} --- we choose the model with \textbf{one dense layer}, since it's simplest one, that is the one with less parameters.
 
-
+\paragraph{Performance}
+Using the \textbf{test dataset}, we evaluate the selected model's performance, obtained an accuracy of $A_\text{val} = $

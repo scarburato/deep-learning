@@ -1,6 +1,6 @@
 \chapter{Training}
 
-We decided to use the $F_1$ score as metric to evaluate our models.
+%We decided to use the $F_1$ score as metric to evaluate our models.
 
 \section{Network from scratch}
 
@@ -14,11 +14,12 @@ We opted for a batch size of 32, representing the number of samples considered i
 In the initial convolutional layer, we utilized 32 filters, with a doubling of filter count for each subsequent convolutional layer. To enhance feature extraction, we applied max-pooling after each convolutional layer, thereby consolidating small regions into a single value.
 
 \subsection{One dense layers}
+\label{scratch.1dense}
 
 \paragraph{Architecture}
 We used one dense layer with 64 neurons. To fight  overfit we used dropout
 
-\lstinputlisting[language=Python,linerange={218-233}]{../train_scratch.py}
+\lstinputlisting[language=Python,linerange={31-44}]{../train_scratch.py}
 
 \paragraph{Results}
 On the validation dataset, we obtained an accuracy $A_\text{val} = 0.91$ and the following $F_1$ scores:
@@ -62,7 +63,7 @@ On the validation dataset, we obtained an accuracy $A_\text{val} = 0.91$ and the
 \paragraph{Architecture}
 We used two dense layers with 128 and 256 neurons. To fight overfit used dropout as well as \emph{L1L2} regularization.
 
-\lstinputlisting[language=Python,linerange={218-233}]{../train_scratch.py}
+\lstinputlisting[language=Python,linerange={51-73}]{../train_scratch.py}
 
 \paragraph{Results}
 On the validation dataset, we obtained an accuracy $A_\text{val} = 0.91$ and the following $F_1$ scores:
@@ -106,6 +107,8 @@ On the validation dataset, we obtained an accuracy $A_\text{val} = 0.91$ and the
 \paragraph{Architecture}
 We used three dense layers with 2048, 1024 and 512 neurons. Given the high number of weight we used higher dropouts and \emph{L1L2} regularization.
 
+\lstinputlisting[language=Python,linerange={121-142}]{../train_scratch.py}
+
 \paragraph{Results}
 On the validation dataset, we obtained an accuracy $A_\text{val} = 0.83$ and the following $F_1$ scores:
 
@@ -146,6 +149,8 @@ On the validation dataset, we obtained an accuracy $A_\text{val} = 0.83$ and the
 
 \paragraph{Architecture}
 We tried to add augmentation to the two layers network \ref{scratch.2dense}. The architecture remains the same.
+
+\lstinputlisting[language=Python,linerange={91-114}]{../train_scratch.py}
 
 \paragraph{Augmentation}
 We used a layer \texttt{tf.keras.layers.RandomContrast(0.5)} to adjust the spectrograms' contrasts during training
@@ -201,6 +206,7 @@ We chosed \emph{VGG16} as our pre-trained model. It's to be noted that all those
 
 \paragraph{Architecture}
 
+\lstinputlisting[language=Python,linerange={85-95}]{../fine_tuning.py}
 
 
 \paragraph{Results}
@@ -244,6 +250,9 @@ On the validation dataset, we obtained an accuracy $A_\text{val} = 0.75$ and the
 
 \paragraph{Architecture}
 
+The same as before but some layers were un-freeze.
+
+\lstinputlisting[language=Python,linerange={112-119}]{../fine_tuning.py}
 
 
 \paragraph{Results}
@@ -278,3 +287,5 @@ On the validation dataset, we obtained an accuracy $A_\text{val} = 0.25$ and the
 	
 	\label{fig:cm5}
 \end{figure}
+
+
