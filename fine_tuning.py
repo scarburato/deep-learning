@@ -20,196 +20,15 @@ LOCAL_MODE = True
 #
 # !pip install tensorflow --quiet
 
-import numpy as np
-import os
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import sys
 
+from common import *
 
-if LOCAL_MODE:
-  TRAIN_PATH = sys.argv[1]
-  LOCAL_MODELS_FOLDER = sys.argv[2]
-
-  assert os.path.isdir(TRAIN_PATH), "arg 1 must be a folder!"
-
-  os.makedirs(LOCAL_MODELS_FOLDER, exist_ok=True)
-  assert os.path.isdir(LOCAL_MODELS_FOLDER), "arg 2 must be a folder!"
-
-BATCH_SIZE = 64
-WIDTH, HEIGHT = 128, 65
-EPOCHS = 25
-
-
-# helper class to switch between color-modes
-class Colors:
-    class ColorMode:
-        def __init__(self, keyword:str, channels:int):
-            self.keyword = keyword
-            self.channels = channels
-
-    # Define color modes as class instances
-    RGB = ColorMode('rgb', 3)
-    GRAYSCALE = ColorMode('grayscale', 1)
-
-
-COLOR_MODE = Colors.GRAYSCALE
-
-
-def compile_model(model):
-
-  import tensorflow_addons as tfa
-
-  f1 = tfa.metrics.F1Score(num_classes=N_CLASSES)
-
-  model.compile(
-      optimizer='adam',
-      loss='categorical_crossentropy',
-      metrics=[
-        f1,
-        "accuracy"
-      ],
-  )
-
-
-def trainmaxx(model, name):
-    out_folder = os.path.join(LOCAL_MODELS_FOLDER, name)
-    if os.path.exists(out_folder):
-      shutil.rmtree(out_folder)
-
-    os.makedirs(out_folder, exist_ok=True)
-
-    # define useful callbacks
-    early_stop = tf.keras.callbacks.EarlyStopping(
-        monitor='loss',
-        min_delta=0.05,
-        patience=6,
-    )
-
-    save_best_model = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(out_folder, name + ".h5"),
-        monitor='val_loss',
-        save_best_only=True,
-        save_weights_only=True,
-    )
-
-    # csv logger
-    logpath = os.path.join(out_folder, "stats.csv")
-    if os.path.exists(logpath):
-      os.remove(logpath)
-
-    csv_logger = tf.keras.callbacks.CSVLogger(
-      logpath,
-      append=True
-    )
-
-    # Train the model
-    history = model.fit(
-        train_dataset,
-        epochs=EPOCHS,
-        validation_data=val_dataset,
-        validation_steps=len(val_dataset),
-        callbacks=[
-            csv_logger,
-            early_stop,
-            save_best_model
-        ],
-
-        verbose=1,
-        workers=4
-    )
-
-    # Plot training history (optional)
-    plt.figure(figsize=(10,10))
-    plt.plot(history.history['accuracy'], label='accuracy')
-    plt.plot(history.history['val_accuracy'], label='val_accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.ylim([0, 1])
-    plt.legend(loc='lower right')
-    plt.show()
-    plt.savefig(os.path.join(out_folder, "learning_history.png"))
-    plt.close()
-
-    # PLot confusion graph
-    preds = model.predict(test_dataset)
-    Y_pred = np.argmax(preds, axis=1)
-
-    # Confusion matrix
-
-    rounded_labels=np.argmax(Y_test, axis=1)
-    rounded_labels[1]
-
-    cm = metrics.confusion_matrix(rounded_labels, Y_pred, normalize = 'true')
-    cm = np.trunc(cm*10**2)/(10**2)
-
-    plt.figure(figsize=(10, 10))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title('Confusion Matrix')
-    plt.colorbar()
-
-    tick_marks = np.arange(N_CLASSES)
-    plt.xticks(tick_marks, CLASSES, rotation=45)
-    plt.yticks(tick_marks, CLASSES)
-
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-      plt.text(j, i, cm[i, j], horizontalalignment='center', color='white' if cm[i, j] > thresh else 'black')
-
-    plt.tight_layout()
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-
-    plt.show()
-    plt.savefig(os.path.join(out_folder, "confusion_matrix.png"))
-    plt.close()
-
-from tensorflow.keras.utils import image_dataset_from_directory
-
-# Load the dataset without validation splitting
-dataset = image_dataset_from_directory(
-    TRAIN_PATH,
-    image_size=(HEIGHT, WIDTH),
-    color_mode= COLOR_MODE.keyword,
-    batch_size=BATCH_SIZE,
-    shuffle=True,
-    seed=0xcafebabe,
-)
-
-CLASSES = dataset.class_names
-N_CLASSES = len(dataset.class_names)
-
-# Calculate the number of validation samples
-N_SAMPLES = dataset.cardinality().numpy()
-
-VALIDATION_SAMPLES = int(0.175 * N_SAMPLES)  # 20% of data for validation
-
-# Split the dataset into training and validation
-train_dataset = dataset.skip(VALIDATION_SAMPLES)
-val_dataset = dataset.take(VALIDATION_SAMPLES)
-train_dataset = train_dataset.skip(VALIDATION_SAMPLES)
-test_dataset = train_dataset.take(VALIDATION_SAMPLES)
-
-X_test = []
-Y_test = []
-
-for images, labels in test_dataset:
-    for image in images:
-        X_test.append(image)                    # append tensor
-        #X.append(image.numpy())           # append numpy.array
-        #X.append(image.numpy().tolist())  # append list
-    for label in labels:
-        Y_test.append(label)                    # append tensor
-        #Y.append(label.numpy())           # append numpy.array
-        #Y.append(label.numpy().tolist())  # append list
 
 """Let's use the convolutional base of the VGG16 network, trained on ImageNet, to extract interesting features from
 our audio images.
 """
 
-from tensorflow.keras.applications import vgg16
-
-conv_base = vgg16.VGG16(
+conv_base = tf.keras.applications.vgg16.VGG16(
     input_shape=(HEIGHT,WIDTH,3),
     weights="imagenet",
     include_top=False,
@@ -270,25 +89,17 @@ model = tf.keras.Sequential([
     tf.keras.layers.Rescaling(1./255),
     conv_base,
     tf.keras.layers.Flatten(),
-    tf.keras.layers.Dense(2048, activation='relu'),
-    tf.keras.layers.Dropout(0.2),
-    tf.keras.layers.Dense(2048, activation='relu'),
-    tf.keras.layers.Dropout(0.3),
-    tf.keras.layers.Dense(2038, activation='relu'),
-    tf.keras.layers.Dropout(0.3),
+    tf.keras.layers.Dense(256, activation='relu'),
+    tf.keras.layers.Dropout(0.66),
     tf.keras.layers.Dense(N_CLASSES, activation='softmax'),
 ], name="layer-freeze-VGG16")
 
-model.compile(
-    #loss="categorical_crossentropy",
-    loss="sparse_categorical_crossentropy",
-    optimizer="adam",
-    metrics=["accuracy"],
-)
+compile_model(model)
+
 
 model.summary()
 
-trainmaxx(model, "vgg16_feature_extract")
+evalutate(model, "vgg16_feature_extract")
 
 """# Fine tuning
 
@@ -309,12 +120,8 @@ for layer in conv_base.layers:
 
 conv_base.summary()
 
-model.compile(
-    loss="sparse_categorical_crossentropy",
-    optimizer="adam",
-    metrics=["accuracy"],
-)
+compile_model(model)
 
 model.summary()
 
-trainmaxx(model, "vgg16_finetune")
+evalutate(model, "vgg16_finetune")

@@ -2,4 +2,21 @@
 
 \section{Literature}
 
-We found an article \cite{womansarticle} were the author worked on a subset of our dataset and she obtained an accuracy of 78\%.
+We found an article \cite{womansarticle} were the author worked on a subset of our dataset and she obtained an accuracy of 78\%. She obtained such result with just three dense layers:
+
+\begin{lstlisting}[language=Python]
+x = vgg_model.output
+x = Flatten()(x) # Flatten dimensions to for use in FC layers
+x = Dense(512, activation='relu')(x)
+x = Dropout(0.5)(x) # Dropout layer to reduce overfitting
+x = Dense(256, activation='relu')(x)
+x = Dense(8, activation='softmax')(x) # Softmax for multiclass
+transfer_model = Model(inputs=vgg_model.input, outputs=x)	
+\end{lstlisting}
+
+while reaching almost 100\% accuracy on the training set, this might be due to \emph{overfit} over the data.
+
+\section{Model selection}
+
+
+

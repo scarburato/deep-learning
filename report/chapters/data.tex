@@ -51,30 +51,34 @@ Here it follows the procedure used to generate the images:
 	\label{fig:ex2}
 \end{figure}
 
+\paragraph{Voice extraction}
+We tried to isolate human voice from other background noise through librosa's buil-in methods but results were unsatisfactory as the accuracy and F1-score dropped significantly, thus we used the raw audios without any cleaning --- i.e. we set \texttt{ISOLATE\_VOICE = False} in the generation program.
+
+It's certainly possible to improve models' performances with proper audio cleaning technique but we lack both the skill and the time to dive deeper into the manner. For example, we could have tried to cut frequencies that are not used by humans' voices.
+
 \section{Classes}
 
 \paragraph{}
-After re-balancing the dataset we're left with the following data
-
+We obtained the following dataset:
 
 \vspace{10mm}
 \begin{tabular}{|c|r|r|}
 	\hline
 	Class & Cardinality & Ratio \\
 	\hline\hline
-	SURPRISE	& 916 & 14.38\% \\
+	SURPRISE	& 1063 & 9.51\% \\
 	\hline
-	SADNESS		& 1077 & 16.91\% \\
+	SADNESS		& 1132 & 10.13\% \\
 	\hline
-	NEUTRAL		& 1014 & 15.92\%\\
+	NEUTRAL		& 2811 & 25.15\%\\
 	\hline
-	HAPPINESS	& 1129 & 17.73\%\\
+	HAPPINESS	& 2807 & 25.15\%\\
 	\hline
-	DISGUST		& 1185 & 18.61\%\\
+	DISGUST		& 1204 & 10.77\%\\
 	\hline
-	ANGER		& 1047 & 16.44\%\\
+	ANGER		& 2160 & 19.33\%\\
 	\hline\hline
-	\textbf{Total} & 6368 & 100\% \\
+	\textbf{Total} & 11177 & 100\% \\
 	\hline
 \end{tabular}
 
