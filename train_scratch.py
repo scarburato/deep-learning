@@ -31,17 +31,19 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import sys
 import shutil
-from sklearn import metrics
 import itertools
+from sklearn import metrics
+
+
 
 if LOCAL_MODE:
   TRAIN_PATH = sys.argv[1]
-  LOCAL_MODELS_FOLDER = sys.argv[2]
+  MODELS_FOLDER = sys.argv[2]
 
   assert os.path.isdir(TRAIN_PATH), "arg 1 must be a folder!"
 
-  os.makedirs(LOCAL_MODELS_FOLDER, exist_ok=True)
-  assert os.path.isdir(LOCAL_MODELS_FOLDER), "arg 2 must be a folder!"
+  os.makedirs(MODELS_FOLDER, exist_ok=True)
+  assert os.path.isdir(MODELS_FOLDER), "arg 2 must be a folder!"
 
 #!mkdir -p /content/drive/Shareddrives/deep_learning/models
 
@@ -50,9 +52,9 @@ if LOCAL_MODE:
 ## No augmentation
 """
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 WIDTH, HEIGHT = 128, 65
-EPOCHS = 30
+EPOCHS = 50
 
 # helper class to switch between color-modes
 class Colors:
@@ -68,50 +70,122 @@ class Colors:
 
 COLOR_MODE = Colors.GRAYSCALE
 
-
+# compile_model compiles a model
 def compile_model(model):
 
   import tensorflow_addons as tfa
 
-  f1 = tfa.metrics.F1Score(num_classes=N_CLASSES, average='micro')
+  f1 = tfa.metrics.F1Score(num_classes=N_CLASSES)
 
   model.compile(
       optimizer='adam',
-      loss='sparse_categorical_crossentropy',
+      loss='categorical_crossentropy',
       metrics=[
         f1,
+        "accuracy"
       ],
   )
 
+def get_model_folder(name : str):
+    return os.path.join(MODELS_FOLDER, name)
 
-def trainmaxx(model, name):
-    out_folder = os.path.join(LOCAL_MODELS_FOLDER, name)
-    if os.path.exists(out_folder):
-      shutil.rmtree(out_folder)
+def get_model_weights_path(name : str):
+   return  os.path.join(get_model_folder(name), "model.keras")
 
-    os.makedirs(out_folder, exist_ok=True)
+def plot(model : any, history : any, name : str):
 
+  out_folder = get_model_folder(name)
+  # Plot training history f1_score
+  plt.figure(figsize=(10,10))
+  plt.plot(np.mean(history.history['f1_score'], axis=1), label='f1_score')
+  plt.plot(np.mean(history.history['val_f1_score'], axis=1), label='val_f1_score')
+  plt.xlabel('Epoch')
+  plt.ylabel('F1-score')
+  plt.ylim([0, 1])
+  plt.legend(loc='lower right')
+  plt.show()
+  plt.savefig(os.path.join(out_folder, "learning_history-f1_score.png"))
+  plt.close()
+
+
+  # Plot training history loss
+  plt.figure(figsize=(10,10))
+  plt.plot(history.history['loss'], label='loss')
+  plt.plot(history.history['val_loss'], label='val_loss')
+  plt.xlabel('Epoch')
+  plt.ylabel('Loss')
+  plt.ylim([0, 1])
+  plt.legend(loc='lower right')
+  plt.show()
+  plt.savefig(os.path.join(out_folder, "learning_history-loss.png"))
+  plt.close()
+
+  # Plot training history accuracy
+  plt.figure(figsize=(10,10))
+  plt.plot(history.history['accuracy'], label='accuracy')
+  plt.plot(history.history['val_accuracy'], label='val_accuracy')
+  plt.xlabel('Epoch')
+  plt.ylabel('Accuracy')
+  plt.ylim([0, 1])
+  plt.legend(loc='lower right')
+  plt.show()
+  plt.savefig(os.path.join(out_folder, "learning_history-acc.png"))
+  plt.close()
+
+  # PLot confusion matrix
+  preds = model.predict(X_test)
+  Y_pred = np.argmax(preds, axis=1)
+
+  cm = metrics.confusion_matrix(Y_test, Y_pred, normalize = 'true')
+  cm = np.trunc(cm*10**2)/(10**2)
+
+  # LOG this should be equal to the original one
+#   correct_predictions = sum(1 for p, t in zip(Y_pred, Y_test) if p == t)
+#   total_predictions = len(Y_pred)
+#   accuracy = correct_predictions / total_predictions
+#   print("Accuracy: ", accuracy)
+  # LOG
+
+  plt.figure(figsize=(10, 10))
+  plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+  plt.title('Confusion Matrix')
+  plt.colorbar()
+
+  tick_marks = np.arange(N_CLASSES)
+  plt.xticks(tick_marks, CLASSES, rotation=45)
+  plt.yticks(tick_marks, CLASSES)
+
+  thresh = cm.max() / 2.
+  for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+    plt.text(j, i, cm[i, j], horizontalalignment='center', color='white' if cm[i, j] > thresh else 'black')
+
+  plt.tight_layout()
+  plt.ylabel('True Label')
+  plt.xlabel('Predicted Label')
+
+  plt.show()
+  plt.savefig(os.path.join(out_folder, "confusion_matrix.png"))
+  plt.close()
+
+# train trains a model and put its weight in the specified output path
+def train(model : any, name : str):
+    
     # define useful callbacks
     early_stop = tf.keras.callbacks.EarlyStopping(
         monitor='loss',
-        min_delta=0.05,
+        min_delta=0.02,
         patience=6,
     )
 
     save_best_model = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(out_folder, name + ".h5"),
+        filepath=get_model_weights_path(name),
         monitor='val_loss',
         save_best_only=True,
         save_weights_only=True,
     )
 
-    # csv logger
-    logpath = os.path.join(out_folder, "stats.csv")
-    if os.path.exists(logpath):
-      os.remove(logpath)
-
     csv_logger = tf.keras.callbacks.CSVLogger(
-      logpath,
+      os.path.join(get_model_folder(name), "model.stats.csv"),
       append=True
     )
 
@@ -131,62 +205,21 @@ def trainmaxx(model, name):
         workers=4
     )
 
-    # Plot training history (optional)
-    plt.figure(figsize=(10,10))
-    plt.plot(history.history['f1_score'], label='f1_score')
-    plt.plot(history.history['val_f1_score'], label='val_f1_score')
-    plt.xlabel('Epoch')
-    plt.ylabel('F1-score')
-    plt.ylim([0, 1])
-    plt.legend(loc='lower right')
-    plt.show()
-    plt.savefig(os.path.join(out_folder, "learning_history.png"))
-    plt.close()
+    return history
 
-    # PLot confusion graph
-    preds = model.predict(test_dataset)
-    Y_pred = np.argmax(preds, axis=1)
+  
+def evalutate(model : any, name : str):
+    model_out_folder = get_model_folder(name)
 
-    # Confusion matrix
+    if os.path.exists(model_out_folder):
+        shutil.rmtree(model_out_folder)
 
-    rounded_labels=np.argmax(Y_test, axis=1)
-    rounded_labels[1]
+    os.makedirs(model_out_folder, exist_ok=True)
 
-    cm = metrics.confusion_matrix(rounded_labels, Y_pred, normalize = 'true')
-    cm = np.trunc(cm*10**2)/(10**2)
+    history = train(model, name)
 
-    plt.figure(figsize=(10, 10))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title('Confusion Matrix')
-    plt.colorbar()
-
-    tick_marks = np.arange(N_CLASSES)
-    plt.xticks(tick_marks, CLASSES, rotation=45)
-    plt.yticks(tick_marks, CLASSES)
-
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-      plt.text(j, i, cm[i, j], horizontalalignment='center', color='white' if cm[i, j] > thresh else 'black')
-
-    plt.tight_layout()
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-
-    plt.show()
-    plt.savefig(os.path.join(out_folder, "confusion_matrix.png"))
-    plt.close()
-
-try:
-  resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
-  tf.config.experimental_connect_to_cluster(resolver)
-  tf.tpu.experimental.initialize_tpu_system(resolver)
-  print("##### All devices: ", tf.config.list_logical_devices('TPU'))
-
-  strategy = tf.distribute.TPUStrategy(resolver)
-except ValueError:
-  print("##### TPU not found using default strategy #####")
-  strategy = tf.distribute.get_strategy()
-
+    plot(model, history, name)
+   
 """La roba vera per l'addestrament insomma"""
 
 from tensorflow.keras.utils import image_dataset_from_directory
@@ -197,10 +230,14 @@ dataset = image_dataset_from_directory(
     image_size=(HEIGHT, WIDTH),
     color_mode=COLOR_MODE.keyword,
     batch_size=BATCH_SIZE,
-    shuffle=True,
-    seed=0xcafebabe,
     label_mode="categorical",
+    shuffle=True,
+    seed=42
 )
+
+
+"""devide the dataset and log info"""
+
 
 CLASSES = dataset.class_names
 N_CLASSES = len(dataset.class_names)
@@ -208,136 +245,112 @@ N_CLASSES = len(dataset.class_names)
 # Calculate the number of validation samples
 N_SAMPLES = dataset.cardinality().numpy()
 
-VALIDATION_SAMPLES = int(0.175 * N_SAMPLES)  # 20% of data for validation
+VALIDATION_TEST_SAMPLES = int(0.3 * N_SAMPLES)  # 30% of data for validation and test
+VALIDATION_SAMPLES = int(0.6 * VALIDATION_TEST_SAMPLES)
 
 # Split the dataset into training and validation
-train_dataset = dataset.skip(VALIDATION_SAMPLES)
-val_dataset = dataset.take(VALIDATION_SAMPLES)
-train_dataset = train_dataset.skip(VALIDATION_SAMPLES)
-test_dataset = train_dataset.take(VALIDATION_SAMPLES)
+val_test_dataset = dataset.take(VALIDATION_TEST_SAMPLES)
+train_dataset = dataset.skip(VALIDATION_TEST_SAMPLES)
+
+test_dataset = val_test_dataset.take(VALIDATION_SAMPLES)
+val_dataset = val_test_dataset.skip(VALIDATION_SAMPLES)
+
 
 X_test = []
 Y_test = []
 
 for images, labels in test_dataset:
     for image in images:
-        X_test.append(image)                    # append tensor
-        #X.append(image.numpy())           # append numpy.array
-        #X.append(image.numpy().tolist())  # append list
+        X_test.append(np.array(image.numpy().tolist()))  # append list
     for label in labels:
-        Y_test.append(label)                    # append tensor
-        #Y.append(label.numpy())           # append numpy.array
-        #Y.append(label.numpy().tolist())  # append list
+        Y_test.append(np.argmax(label.numpy(), axis=0)) 
 
-def CreateModel():
-  model = tf.keras.Sequential([
-      tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
-      tf.keras.layers.Rescaling(1./255),
-      tf.keras.layers.Conv2D(16, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Flatten(),
-      tf.keras.layers.Dense(128, activation='relu'),
-      tf.keras.layers.Dropout(0.3),
-      tf.keras.layers.Dense(256, activation='relu'),
-      tf.keras.layers.Dense(128, activation='relu'),
-      tf.keras.layers.Dropout(0.3),
-      tf.keras.layers.Dense(N_CLASSES, activation='softmax')
-  ])
+X_test = tf.constant(X_test)
 
-  compile_model(model)
 
-  return model
+model = tf.keras.Sequential([
+    tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
+    tf.keras.layers.Rescaling(1./255),
+    tf.keras.layers.Conv2D(16, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dropout(0.3),
+    tf.keras.layers.Dense(256, activation='relu'),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dropout(0.3),
+    tf.keras.layers.Dense(N_CLASSES, activation='softmax')
+])
 
-with strategy.scope():
-  model = CreateModel()
-
+compile_model(model)
 model.summary()
 
-trainmaxx(model, "model0")
+evalutate(model, "model0")
 
 """## Augmentation
 
 
 """
 
-def CreateModel():
+data_augmentation = tf.keras.Sequential([
+  tf.keras.layers.RandomFlip("horizontal"), # Applies horizontal flipping to a random 50% of the images
+  tf.keras.layers.RandomRotation(0.1), # Rotates the input images by a random value in the range[–10%, +10%] (fraction of full circle [-36°, 36°])
+  tf.keras.layers.RandomZoom(0.2), # Zooms in or out of the image by a random factor in the range [-20%, +20%]
+], name="ruotaingrandimento")
 
-  data_augmentation = tf.keras.Sequential([
-    tf.keras.layers.RandomFlip("horizontal"), # Applies horizontal flipping to a random 50% of the images
-    tf.keras.layers.RandomRotation(0.1), # Rotates the input images by a random value in the range[–10%, +10%] (fraction of full circle [-36°, 36°])
-    tf.keras.layers.RandomZoom(0.2), # Zooms in or out of the image by a random factor in the range [-20%, +20%]
-  ], name="ruotaingrandimento")
+model = tf.keras.Sequential([
+    tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
+    tf.keras.layers.Rescaling(1./255),
+    data_augmentation,
+    tf.keras.layers.RandomContrast(0.5),
+    tf.keras.layers.Conv2D(filters=32, kernel_size=3, activation="relu",),
+    tf.keras.layers.MaxPooling2D(pool_size=2),
 
-  model = tf.keras.Sequential([
-      tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
-      tf.keras.layers.Rescaling(1./255),
-      #data_augmentation,
-      tf.keras.layers.RandomContrast(0.5),
-      tf.keras.layers.Conv2D(filters=32, kernel_size=3, activation="relu",),
-      tf.keras.layers.MaxPooling2D(pool_size=2),
+    tf.keras.layers.Conv2D(filters=64, kernel_size=3, activation="relu"),
+    tf.keras.layers.MaxPooling2D(pool_size=2),
 
-      tf.keras.layers.Conv2D(filters=64, kernel_size=3, activation="relu"),
-      tf.keras.layers.MaxPooling2D(pool_size=2),
+    tf.keras.layers.Conv2D(filters=128, kernel_size=3, activation="relu"),
+    tf.keras.layers.MaxPooling2D(pool_size=2),
 
-      tf.keras.layers.Conv2D(filters=128, kernel_size=3, activation="relu"),
-      tf.keras.layers.MaxPooling2D(pool_size=2),
+    tf.keras.layers.Conv2D(filters=256, kernel_size=3, activation="relu"),
+    tf.keras.layers.MaxPooling2D(pool_size=2),
 
-      tf.keras.layers.Conv2D(filters=256, kernel_size=3, activation="relu"),
-      tf.keras.layers.MaxPooling2D(pool_size=2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dropout(0.5),
+    tf.keras.layers.Dense(N_CLASSES, activation='softmax')
+])
 
-      tf.keras.layers.Flatten(),
-      tf.keras.layers.Dense(128, activation='relu'),
-      tf.keras.layers.Dropout(0.5),
-      tf.keras.layers.Dense(N_CLASSES, activation='softmax')
-  ])
-
-
-  # Compile the model
-  compile_model(model)
-
-  return model
-
-# TODO: check if creating the model inside this scope is correct
-with strategy.scope():
-  model = CreateModel()
-
+compile_model(model)
 model.summary()
+evalutate(model, "model1")
 
-# trainmaxx(model, "model1")
+# HJ
+model = tf.keras.Sequential([
+    tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
+    tf.keras.layers.Rescaling(1./255),
+    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(128, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Conv2D(512, (3, 3), activation='relu'),
+    tf.keras.layers.MaxPooling2D((2, 2)),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(1024, activation='relu'),
+    tf.keras.layers.Dropout(0.6),
+    tf.keras.layers.Dense(1024, activation='relu'),
+    tf.keras.layers.Dropout(0.6),
+    tf.keras.layers.Dense(512, activation='relu'),
+    tf.keras.layers.Dropout(0.6),
+    tf.keras.layers.Dense(N_CLASSES, activation='softmax')
+])
 
-def CreateModel():
-  model = tf.keras.Sequential([
-      tf.keras.Input(shape=(HEIGHT, WIDTH, COLOR_MODE.channels)),
-      tf.keras.layers.Rescaling(1./255),
-      tf.keras.layers.Conv2D(128, (3, 3), activation='relu6'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(256, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(512, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Conv2D(1024, (3, 3), activation='relu'),
-      tf.keras.layers.MaxPooling2D((2, 2)),
-      tf.keras.layers.Flatten(),
-      tf.keras.layers.Dense(1024, activation='relu'),
-      tf.keras.layers.Dropout(0.6),
-      tf.keras.layers.Dense(1024, activation='relu'),
-      tf.keras.layers.Dropout(0.6),
-      tf.keras.layers.Dense(512, activation='relu'),
-      tf.keras.layers.Dropout(0.6),
-      tf.keras.layers.Dense(N_CLASSES, activation='softmax')
-  ])
-
-  compile_model(model)
-
-  return model
-
-with strategy.scope():
-  model = CreateModel()
-
+compile_model(model)
 model.summary()
-
-trainmaxx(model, "model2")
+evalutate(model, "model2")
